@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - main
+  # Allow manual invocation for debugging
+  workflow_dispatch:
 
 env:
   TINYGO_VERSION: 0.25.0
