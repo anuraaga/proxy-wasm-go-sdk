@@ -108,20 +108,18 @@ func Test_http_body(t *testing.T) {
 			} {
 				tc := tc
 				t.Run(tc.op, func(t *testing.T) {
+					req, err := http.NewRequest("PUT", "http://localhost:18000/anything",
+						bytes.NewBuffer([]byte(`[original body]`)))
+					require.NoError(t, err)
+					req.Header.Add("buffer-replace-at", mode)
+					req.Header.Add("buffer-operation", tc.op)
+					res, err := http.DefaultClient.Do(req)
+					require.NoError(t, err)
+					defer res.Body.Close()
+					body, err := io.ReadAll(res.Body)
+					require.NoError(t, err)
+					require.Equal(t, tc.expBody, string(body))
 					require.Eventually(t, func() bool {
-						req, err := http.NewRequest("PUT", "http://localhost:18000/anything",
-							bytes.NewBuffer([]byte(`[original body]`)))
-						require.NoError(t, err)
-						req.Header.Add("buffer-replace-at", mode)
-						req.Header.Add("buffer-operation", tc.op)
-						res, err := http.DefaultClient.Do(req)
-						if err != nil {
-							return false
-						}
-						defer res.Body.Close()
-						body, err := io.ReadAll(res.Body)
-						require.NoError(t, err)
-						require.Equal(t, tc.expBody, string(body))
 						require.True(t, checkMessage(stdErr.String(), []string{
 							fmt.Sprintf(`original %s body: [original body]`, mode)},
 							[]string{"failed to"},
