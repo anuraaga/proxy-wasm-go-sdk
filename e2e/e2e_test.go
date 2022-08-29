@@ -89,37 +89,41 @@ func Test_http_auth_random(t *testing.T) {
 }
 
 func Test_http_body(t *testing.T) {
-	stdErr, kill := startEnvoy(t, 8001)
-	defer kill()
+	for i := 0; i < 100; i++ {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			stdErr, kill := startEnvoy(t, 8001)
+			defer kill()
 
-	for _, tc := range []struct {
-		op, expBody string
-	}{
-		{op: "append", expBody: `[original body][this is appended body]`},
-		{op: "prepend", expBody: `[this is prepended body][original body]`},
-		{op: "replace", expBody: `[this is replaced body]`},
-		// Should fall back to to the replace.
-		{op: "invalid", expBody: `[this is replaced body]`},
-	} {
-		t.Run(tc.op, func(t *testing.T) {
-			require.Eventually(t, func() bool {
-				req, err := http.NewRequest("PUT", "http://localhost:18000/anything",
-					bytes.NewBuffer([]byte(`[original body]`)))
-				require.NoError(t, err)
-				req.Header.Add("buffer-operation", tc.op)
-				res, err := http.DefaultClient.Do(req)
-				if err != nil {
-					return false
-				}
-				defer res.Body.Close()
-				body, err := io.ReadAll(res.Body)
-				require.NoError(t, err)
-				return string(body) == tc.expBody &&
-					checkMessage(stdErr.String(), []string{
-						`original request body: [original body]`},
-						[]string{"failed to"},
-					) && checkMessage(string(body), []string{tc.expBody}, nil)
-			}, 5*time.Second, 500*time.Millisecond, stdErr.String())
+			for _, tc := range []struct {
+				op, expBody string
+			}{
+				{op: "append", expBody: `[original body][this is appended body]`},
+				{op: "prepend", expBody: `[this is prepended body][original body]`},
+				{op: "replace", expBody: `[this is replaced body]`},
+				// Should fall back to to the replace.
+				{op: "invalid", expBody: `[this is replaced body]`},
+			} {
+				t.Run(tc.op, func(t *testing.T) {
+					require.Eventually(t, func() bool {
+						req, err := http.NewRequest("PUT", "http://localhost:18000/anything",
+							bytes.NewBuffer([]byte(`[original body]`)))
+						require.NoError(t, err)
+						req.Header.Add("buffer-operation", tc.op)
+						res, err := http.DefaultClient.Do(req)
+						if err != nil {
+							return false
+						}
+						defer res.Body.Close()
+						body, err := io.ReadAll(res.Body)
+						require.NoError(t, err)
+						return string(body) == tc.expBody &&
+							checkMessage(stdErr.String(), []string{
+								`original request body: [original body]`},
+								[]string{"failed to"},
+							) && checkMessage(string(body), []string{tc.expBody}, nil)
+					}, 5*time.Second, 500*time.Millisecond, stdErr.String())
+				})
+			}
 		})
 	}
 }
